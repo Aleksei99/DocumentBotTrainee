@@ -1,6 +1,7 @@
 package com.smuraha.service.impl;
 
 import com.smuraha.service.ConsumerService;
+import com.smuraha.service.MainService;
 import com.smuraha.service.ProducerService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j;
@@ -18,18 +19,13 @@ import static com.smuraha.model.RabbitQueue.*;
 @RequiredArgsConstructor
 public class ConsumerServiceImpl implements ConsumerService {
 
-    private final ProducerService producerService;
+    private final MainService mainService;
 
     @Override
     @RabbitListener(queues = TEXT_MESSAGE_UPDATE)
     public void consumeTextMessageUpdates(Update update) {
         log.debug("NODE: Text message is received");
-
-        Message message = update.getMessage();
-        SendMessage sendMessage = new SendMessage();
-        sendMessage.setChatId(message.getChatId().toString());
-        sendMessage.setText("Hello from Node");
-        producerService.produceAnswer(sendMessage);
+        mainService.processTextMessage(update);
     }
 
     @Override
