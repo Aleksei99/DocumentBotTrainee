@@ -11,6 +11,7 @@ import com.smuraha.exceptions.UploadFileException;
 import com.smuraha.service.FileService;
 import com.smuraha.service.MainService;
 import com.smuraha.service.ProducerService;
+import com.smuraha.service.enums.LinkType;
 import com.smuraha.service.enums.ServiceCommands;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j;
@@ -69,10 +70,10 @@ public class MainServiceImpl implements MainService {
         if (isNotAllowedToSendContent(chatId, appUser)) {
             return;
         }
-        //TODO доделать
         try {
             AppDocument doc = fileService.processDoc(message);
-            String answer = "Документ успешно загружен! Ссылка для скачивания http://test.com/download/123";
+            String link = fileService.generateLink(doc.getId(), LinkType.GET_DOC);
+            String answer = "Документ успешно загружен! Ссылка для скачивания "+link;
             sendAnswer(answer, chatId);
         }catch (UploadFileException e){
             log.error(e);
@@ -106,8 +107,8 @@ public class MainServiceImpl implements MainService {
         }
         try {
             AppPhoto appPhoto = fileService.processPhoto(update.getMessage());
-            //TODO доделать
-            String answer = "Фото успешно загружено! Ссылка для скачивания http://test.com/download/456";
+            String link = fileService.generateLink(appPhoto.getId(), LinkType.GET_PHOTO);
+            String answer = "Фото успешно загружено! Ссылка для скачивания "+link;
             sendAnswer(answer, chatId);
         }catch (UploadFileException e){
             log.error(e);
