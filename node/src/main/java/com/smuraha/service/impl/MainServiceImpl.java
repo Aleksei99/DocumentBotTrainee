@@ -2,11 +2,15 @@ package com.smuraha.service.impl;
 
 import com.smuraha.dao.AppUserDao;
 import com.smuraha.dao.RawDataDao;
+import com.smuraha.entity.AppDocument;
 import com.smuraha.entity.AppUser;
 import com.smuraha.entity.RawData;
 import com.smuraha.entity.enums.UserState;
+import com.smuraha.exceptions.UploadFileException;
+import com.smuraha.service.FileService;
 import com.smuraha.service.MainService;
 import com.smuraha.service.ProducerService;
+import com.smuraha.service.enums.ServiceCommands;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j;
 import org.springframework.stereotype.Service;
@@ -27,6 +31,7 @@ public class MainServiceImpl implements MainService {
     private final RawDataDao rawDataDao;
     private final ProducerService producerService;
     private final AppUserDao appUserDao;
+    private final FileService fileService;
 
     @Override
     public void processTextMessage(Update update) {
@@ -38,7 +43,8 @@ public class MainServiceImpl implements MainService {
         String text = message.getText();
         String output = "";
 
-        if (CANCEL.equals(text)) {
+        ServiceCommands command = fromValue(text);
+        if (CANCEL.equals(command)) {
             output = cancelProcess(appUser);
         } else if (BASIC_STATE.equals(userState)) {
             output = processServiceCommand(appUser, text);
@@ -57,13 +63,22 @@ public class MainServiceImpl implements MainService {
     public void processDocMessage(Update update) {
         saveRawData(update);
         AppUser appUser = findOrSaveAppUser(update);
-        Long chatId = update.getMessage().getChatId();
+        Message message = update.getMessage();
+        Long chatId = message.getChatId();
         if (isNotAllowedToSendContent(chatId, appUser)) {
             return;
         }
         //TODO доделать
-        String answer = "Документ успешно загружен! Ссылка для скачивания http://test.com/download/123";
-        sendAnswer(answer, chatId);
+        try {
+            AppDocument doc = fileService.processDoc(message);
+            String answer = "Документ успешно загружен! Ссылка для скачивания http://test.com/download/123";
+            sendAnswer(answer, chatId);
+        }catch (UploadFileException e){
+            log.error(e);
+            String error = "Загрузка не удалась! Попробуйте позже.";
+            sendAnswer(error,chatId);
+        }
+
     }
 
     private boolean isNotAllowedToSendContent(Long chatId, AppUser appUser) {
