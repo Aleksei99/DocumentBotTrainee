@@ -3,6 +3,7 @@ package com.smuraha.service.impl;
 import com.smuraha.dao.AppUserDao;
 import com.smuraha.dao.RawDataDao;
 import com.smuraha.entity.AppDocument;
+import com.smuraha.entity.AppPhoto;
 import com.smuraha.entity.AppUser;
 import com.smuraha.entity.RawData;
 import com.smuraha.entity.enums.UserState;
@@ -103,9 +104,16 @@ public class MainServiceImpl implements MainService {
         if (isNotAllowedToSendContent(chatId, appUser)) {
             return;
         }
-        //TODO доделать
-        String answer = "Фото успешно загружено! Ссылка для скачивания http://test.com/download/456";
-        sendAnswer(answer, chatId);
+        try {
+            AppPhoto appPhoto = fileService.processPhoto(update.getMessage());
+            //TODO доделать
+            String answer = "Фото успешно загружено! Ссылка для скачивания http://test.com/download/456";
+            sendAnswer(answer, chatId);
+        }catch (UploadFileException e){
+            log.error(e);
+            String error = "Загрузка фото не удалась! Попробуйте позже.";
+            sendAnswer(error,chatId);
+        }
     }
 
     private void sendAnswer(String output, Long chatId) {
@@ -122,12 +130,13 @@ public class MainServiceImpl implements MainService {
     }
 
     private String processServiceCommand(AppUser appUser, String cmd) {
-        if (REGISTRATION.equals(cmd)) {
+        ServiceCommands command = fromValue(cmd);
+        if (REGISTRATION.equals(command)) {
             //TODO добавить рег-цию
             return "Временно не доступно!";
-        } else if (HELP.equals(cmd)) {
+        } else if (HELP.equals(command)) {
             return help();
-        } else if (START.equals(cmd)) {
+        } else if (START.equals(command)) {
             return "Приветствую! Чтобы просмотреть список команд введите /help";
         } else {
             return "Неизвестная команда! Чтобы просмотреть список команд введите /help";
