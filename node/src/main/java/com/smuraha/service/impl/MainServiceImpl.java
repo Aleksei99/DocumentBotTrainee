@@ -8,6 +8,7 @@ import com.smuraha.entity.AppUser;
 import com.smuraha.entity.RawData;
 import com.smuraha.entity.enums.UserState;
 import com.smuraha.exceptions.UploadFileException;
+import com.smuraha.service.AppUserService;
 import com.smuraha.service.FileService;
 import com.smuraha.service.MainService;
 import com.smuraha.service.ProducerService;
@@ -20,6 +21,8 @@ import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.User;
+
+import java.util.Optional;
 
 import static com.smuraha.entity.enums.UserState.BASIC_STATE;
 import static com.smuraha.entity.enums.UserState.WAIT_FOR_EMAIL_STATE;
@@ -34,6 +37,7 @@ public class MainServiceImpl implements MainService {
     private final ProducerService producerService;
     private final AppUserDao appUserDao;
     private final FileService fileService;
+    private final AppUserService appUserService;
 
     @Override
     public void processTextMessage(Update update) {
@@ -51,7 +55,7 @@ public class MainServiceImpl implements MainService {
         } else if (BASIC_STATE.equals(userState)) {
             output = processServiceCommand(appUser, text);
         } else if (WAIT_FOR_EMAIL_STATE.equals(userState)) {
-            //TODO добавить обработку
+            output = appUserService.setEmail(appUser, text);
         } else {
             log.error("Unknown user state: " + userState);
             output = "Неизвестная ошибка! Введите /cancel и попробуйте снова!";
@@ -73,12 +77,12 @@ public class MainServiceImpl implements MainService {
         try {
             AppDocument doc = fileService.processDoc(message);
             String link = fileService.generateLink(doc.getId(), LinkType.GET_DOC);
-            String answer = "Документ успешно загружен! Ссылка для скачивания "+link;
+            String answer = "Документ успешно загружен! Ссылка для скачивания " + link;
             sendAnswer(answer, chatId);
-        }catch (UploadFileException e){
+        } catch (UploadFileException e) {
             log.error(e);
             String error = "Загрузка не удалась! Попробуйте позже.";
-            sendAnswer(error,chatId);
+            sendAnswer(error, chatId);
         }
 
     }
@@ -108,12 +112,12 @@ public class MainServiceImpl implements MainService {
         try {
             AppPhoto appPhoto = fileService.processPhoto(update.getMessage());
             String link = fileService.generateLink(appPhoto.getId(), LinkType.GET_PHOTO);
-            String answer = "Фото успешно загружено! Ссылка для скачивания "+link;
+            String answer = "Фото успешно загружено! Ссылка для скачивания " + link;
             sendAnswer(answer, chatId);
-        }catch (UploadFileException e){
+        } catch (UploadFileException e) {
             log.error(e);
             String error = "Загрузка фото не удалась! Попробуйте позже.";
-            sendAnswer(error,chatId);
+            sendAnswer(error, chatId);
         }
     }
 
@@ -133,8 +137,7 @@ public class MainServiceImpl implements MainService {
     private String processServiceCommand(AppUser appUser, String cmd) {
         ServiceCommands command = fromValue(cmd);
         if (REGISTRATION.equals(command)) {
-            //TODO добавить рег-цию
-            return "Временно не доступно!";
+            return appUserService.registerUser(appUser);
         } else if (HELP.equals(command)) {
             return help();
         } else if (START.equals(command)) {
@@ -161,18 +164,18 @@ public class MainServiceImpl implements MainService {
 
     private AppUser findOrSaveAppUser(Update update) {
         User telegramUser = update.getMessage().getFrom();
-        AppUser persistentAppUser = appUserDao.findAppUserByTelegramUserId(telegramUser.getId());
-        if (persistentAppUser == null) {
+        Optional<AppUser> optional = appUserDao.findByTelegramUserId(telegramUser.getId());
+        if (optional.isEmpty()) {
             AppUser transientAppUser = AppUser.builder()
                     .telegramUserId(telegramUser.getId())
                     .username(telegramUser.getUserName())
                     .firstName(telegramUser.getFirstName())
                     .lastName(telegramUser.getLastName())
-                    .isActive(true)
+                    .isActive(false)
                     .userState(BASIC_STATE)
                     .build();
             return appUserDao.save(transientAppUser);
         }
-        return persistentAppUser;
+        return optional.get();
     }
 }
